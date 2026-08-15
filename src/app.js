@@ -41,5 +41,40 @@ window.openVehicleForm=function(id){
   const v=state.vehicles.find(x=>x.id===id)||{};
   const form=document.getElementById('vehicle-form');
   const description=form.querySelector('textarea[name="description"]');
-  description.insertAdjacentHTML('beforebegin',`<p class="eyebrow">DATOS TÉCNICOS DEL VEHÍCULO</p><div class="form-row"><label>Motor<input name="engine" value="${e(v.engine)}" placeholder="Ej.: 2.0 TFSI Turbo nafta"></label><label>Cilindrada<input name="displacement" value="${e(v.displacement)}" placeholder="Ej.: 1.984 cc"></label></div><div class="form-row"><label>Potencia<input name="power" value="${e(v.power)}" placeholder="Ej.: 230 HP"></label><label>Tracción<input name="drivetrain" value="${e(v.drivetrain)}" placeholder="Ej.: Quattro"></label></div><div class="form-row"><label>Transmisión<input name="transmission_detail" value="${e(v.transmission_detail||v.transmission)}" placeholder="Ej.: Automática"></label><label>Combustible<input name="fuel_type_detail" value="${e(v.fuel_type_detail||v.fuel_type)}" placeholder="Ej.: Nafta"></label></div><label>Equipamiento destacado<textarea name="featured_equipment" placeholder="Ej.: Ópticas LED, cámara, sensores, cuero, techo panorámico...">${e(v.featured_equipment)}</textarea></label>`);
+  description.insertAdjacentHTML('beforebegin',`<p class="eyebrow">DATOS TÉCNICOS DEL VEHÍCULO</p><div class="form-row"><label>Motor<input name="engine" value="${e(v.engine)}" placeholder="Ej.: 2.0 TFSI Turbo nafta"></label><label>Cilindrada<input name="displacement" value="${e(v.displacement)}" placeholder="Ej.: 1.984 cc"></label></div><div class="form-row"><label>Potencia<input name="power" value="${e(v.power)}" placeholder="Ej.: 230 HP"></label><label>Tracción<input name="drivetrain" value="${e(v.drivetrain)}" placeholder="Ej.: Quattro"></label></div><div class="form-row"><label>Transmisión<input name="transmission_detail" value="${e(v.transmission_detail||v.transmission)}" placeholder="Ej.: Automática"></label><label>Combustible<input name="fuel_type_detail" value="${e(v.fuel_type_detail||v.fuel_type)}" placeholder="Ej.: Nafta"></label></div><label>Equipamiento destacado<textarea name="featured_equipment" placeholder="Ej.: Ópticas LED, cámara, sensores, cuero, techo panorámico...">${e(v.featured_equipment)}</textarea></label><label>Fotos adicionales para la galería<input name="gallery_images" type="file" multiple accept="image/jpeg,image/png,image/webp"></label><p class="muted">Podés elegir varias fotos a la vez. La primera foto del formulario sigue siendo la portada.</p>`);
+  form.addEventListener('submit',ev=>{ev.preventDefault();ev.stopImmediatePropagation();saveVehicleWithGallery(ev,id)},true);
+}
+
+async function saveVehicleWithGallery(ev,id){
+  const f=new FormData(ev.currentTarget),data=Object.fromEntries(f),image=f.get('vehicle_image'),galleryImages=f.getAll('gallery_images').filter(file=>file&&file.size);
+  delete data.vehicle_image;delete data.gallery_images;
+  const msg=document.getElementById('form-message');
+  try{
+    if(data.dealership_id==='__new'){
+      if(!data.dealer_name||!data.dealer_whatsapp)throw Error('Completá nombre y WhatsApp de la automotora.');
+      msg.textContent='Creando automotora…';
+      const slug=data.dealer_name.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')+'-'+Date.now().toString().slice(-5);
+      const dealer=await request('dealerships',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({slug,name:data.dealer_name,whatsapp:data.dealer_whatsapp.replace(/[^0-9]/g,''),city:data.dealer_city,country:data.dealer_country})});
+      data.dealership_id=dealer[0].id;
+    }
+    delete data.dealer_name;delete data.dealer_whatsapp;delete data.dealer_city;delete data.dealer_country;
+    data.year=Number(data.year);data.price=Number(data.price);data.mileage=Number(data.mileage||0);data.currency='USD';data.transmission=data.transmission_detail||'Automático';data.fuel_type=data.fuel_type_detail||'No especificado';
+    if(image?.size){msg.textContent='Subiendo foto principal…';data.cover_image_url=await uploadVehicleImage(image)}
+    const saved=await request(id?`vehicles?id=eq.${id}`:'vehicles',{method:id?'PATCH':'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(data)});
+    const vehicleId=id||saved?.[0]?.id;
+    for(let index=0;index<galleryImages.length;index++){
+      msg.textContent=`Subiendo foto ${index+1} de ${galleryImages.length}…`;
+      const imageUrl=await uploadVehicleImage(galleryImages[index]);
+      await request('vehicle_images',{method:'POST',body:JSON.stringify({vehicle_id:vehicleId,image_url:imageUrl,sort_order:index})});
+    }
+    closeModal();await load();
+  }catch(error){msg.textContent=error.message||'No se pudo guardar. Revisá tu sesión y que hayas ejecutado los archivos SQL.'}
+}
+
+async function uploadVehicleImage(file){
+  const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-z0-9]/gi,'');
+  const name=`${Date.now()}-${crypto.randomUUID()}.${ext}`;
+  const r=await fetch(`https://rebzpikwqxmwajdimfld.supabase.co/storage/v1/object/vehicle-images/${name}`,{method:'POST',headers:{apikey:KEY,'Content-Type':file.type||'image/jpeg','x-upsert':'false'},body:file});
+  if(!r.ok)throw Error('No se pudo subir una de las fotos.');
+  return `https://rebzpikwqxmwajdimfld.supabase.co/storage/v1/object/public/vehicle-images/${name}`;
 }
