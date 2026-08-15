@@ -1,8 +1,43 @@
 <!doctype html>
-<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Vehículo | AutoVision AI</title><link rel="stylesheet" href="src/styles.css"><link rel="stylesheet" href="src/public.css"></head><body><main class="public-page" id="app"><p>Cargando vehículo…</p></main><script>
-const key='sb_publishable_dvwP1aVUTSHvmNcqn-IDEw_f0R2KO7D',base='https://rebzpikwqxmwajdimfld.supabase.co/rest/v1/';
-const params=new URLSearchParams(location.search),brand=params.get('brand'),model=params.get('model'),app=document.getElementById('app');
-const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const headers={apikey:key,Authorization:'Bearer '+key};
-if(!brand||!model)app.innerHTML='<p>Vehículo no encontrado.</p>';else fetch(`${base}vehicles?select=*&brand=eq.${encodeURIComponent(brand)}&model=eq.${encodeURIComponent(model)}&limit=1`,{headers}).then(r=>r.json()).then(async rows=>{const v=rows[0];if(!v)throw Error();const dealerRows=v.dealership_id?await fetch(`${base}dealerships?id=eq.${v.dealership_id}&select=*&limit=1`,{headers}).then(r=>r.json()):[];const dealer=dealerRows[0]||{name:'AutoVision',whatsapp:'',city:'',country:''};const share=location.href,qr='https://api.qrserver.com/v1/create-qr-code/?size=260x260&data='+encodeURIComponent(share),message=encodeURIComponent(`Hola, te contacto desde AutoVision. Quiero consultar por el ${v.brand} ${v.model}.`),whatsapp=dealer.whatsapp?`https://wa.me/${dealer.whatsapp}?text=${message}`:'#';const technical=[['Motor',v.engine],['Cilindrada',v.displacement],['Potencia',v.power],['Tracción',v.drivetrain]].filter(([,value])=>value);app.innerHTML=`<a class="back public-back" href="index.html">← AutoVision AI</a><div class="public-grid"><section><img class="public-hero" src="${esc(v.cover_image_url)}" alt="${esc(v.brand)} ${esc(v.model)}"><div class="vehicle-public-data"><p class="eyebrow">${esc(v.status==='reserved'?'RESERVADO':'DISPONIBLE')} · ${esc(dealer.name)}</p><h1>${esc(v.brand)} ${esc(v.model)}</h1><p class="price">${esc(v.currency||'USD')} ${Number(v.price).toLocaleString('es-UY')}</p><div class="specs"><span>${esc(v.year)}</span><span>${Number(v.mileage||0).toLocaleString('es-UY')} km</span><span>${esc(v.transmission_detail||v.transmission||'Automático')}</span><span>${esc(v.fuel_type_detail||v.fuel_type||'No especificado')}</span>${technical.map(([label,value])=>`<span>${esc(label)}: ${esc(value)}</span>`).join('')}</div>${v.featured_equipment?`<p><strong>Equipamiento destacado</strong><br>${esc(v.featured_equipment)}</p>`:''}<p class="muted">${esc(v.description||'Consultá disponibilidad y condiciones de este vehículo.')}</p><p class="dealer-location">${esc(dealer.name)} · ${esc(dealer.city)}, ${esc(dealer.country)}</p><a class="whatsapp public-action" href="${whatsapp}" target="_blank" rel="noopener">Consultar por WhatsApp</a></div></section><aside class="qr-card"><h2>Escaneá y compartí</h2><p class="muted">Este QR lleva directamente a esta ficha.</p><img src="${qr}" alt="Código QR para ${esc(v.brand)} ${esc(v.model)}"><button onclick="navigator.clipboard.writeText(location.href).then(()=>this.textContent='Enlace copiado')">Copiar enlace</button></aside></div>`}).catch(()=>app.innerHTML='<p>Este vehículo no está disponible o no existe.</p>');
-</script></body></html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Vehículo | AutoVision AI</title>
+  <link rel="stylesheet" href="src/styles.css">
+  <link rel="stylesheet" href="src/public.css">
+</head>
+<body>
+  <main class="public-page" id="app"><p>Cargando vehículo…</p></main>
+  <script>
+    const key='sb_publishable_dvwP1aVUTSHvmNcqn-IDEw_f0R2KO7D';
+    const base='https://rebzpikwqxmwajdimfld.supabase.co/rest/v1/';
+    const params=new URLSearchParams(location.search);
+    const brand=params.get('brand');
+    const model=params.get('model');
+    const app=document.getElementById('app');
+    const esc=t=>String(t??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const headers={apikey:key,Authorization:'Bearer '+key};
+
+    async function showVehicle(){
+      if(!brand||!model){app.innerHTML='<p>Vehículo no encontrado.</p>';return}
+      try{
+        const rows=await fetch(`${base}vehicles?select=*&brand=eq.${encodeURIComponent(brand)}&model=eq.${encodeURIComponent(model)}&limit=1`,{headers}).then(r=>r.json());
+        const v=rows[0];
+        if(!v)throw Error();
+        const dealerRows=v.dealership_id?await fetch(`${base}dealerships?id=eq.${v.dealership_id}&select=*&limit=1`,{headers}).then(r=>r.json()):[];
+        const galleryRows=await fetch(`${base}vehicle_images?vehicle_id=eq.${v.id}&select=*&order=sort_order.asc`,{headers}).then(r=>r.ok?r.json():[]);
+        const dealer=dealerRows[0]||{name:'AutoVision',whatsapp:'',city:'',country:''};
+        const images=[v.cover_image_url,...galleryRows.map(row=>row.image_url)].filter(Boolean).filter((url,index,list)=>list.indexOf(url)===index);
+        const share=location.href;
+        const qr='https://api.qrserver.com/v1/create-qr-code/?size=260x260&data='+encodeURIComponent(share);
+        const message=encodeURIComponent(`Hola, te contacto desde AutoVision. Quiero consultar por el ${v.brand} ${v.model}.`);
+        const whatsapp=dealer.whatsapp?`https://wa.me/${dealer.whatsapp}?text=${message}`:'#';
+        const technical=[['Motor',v.engine],['Cilindrada',v.displacement],['Potencia',v.power],['Tracción',v.drivetrain]].filter(([,value])=>value);
+        app.innerHTML=`<a class="back public-back" href="index.html">← AutoVision AI</a><div class="public-grid"><section><img id="vehicle-gallery-main" class="public-hero" src="${esc(images[0]||'https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&fit=crop&w=900&q=80')}" alt="${esc(v.brand)} ${esc(v.model)}">${images.length>1?`<div class="gallery-thumbs">${images.map(url=>`<img src="${esc(url)}" data-src="${esc(url)}" onclick="document.getElementById('vehicle-gallery-main').src=this.dataset.src" alt="Otra foto de ${esc(v.brand)} ${esc(v.model)}">`).join('')}</div>`:''}<div class="vehicle-public-data"><p class="eyebrow">${esc(v.status==='reserved'?'RESERVADO':'DISPONIBLE')} · ${esc(dealer.name)}</p><h1>${esc(v.brand)} ${esc(v.model)}</h1><p class="price">${esc(v.currency||'USD')} ${Number(v.price).toLocaleString('es-UY')}</p><div class="specs"><span>${esc(v.year)}</span><span>${Number(v.mileage||0).toLocaleString('es-UY')} km</span><span>${esc(v.transmission_detail||v.transmission||'Automático')}</span><span>${esc(v.fuel_type_detail||v.fuel_type||'No especificado')}</span>${technical.map(([label,value])=>`<span>${esc(label)}: ${esc(value)}</span>`).join('')}</div>${v.featured_equipment?`<p><strong>Equipamiento destacado</strong><br>${esc(v.featured_equipment)}</p>`:''}<p class="muted">${esc(v.description||'Consultá disponibilidad y condiciones de este vehículo.')}</p><p class="dealer-location">${esc(dealer.name)} · ${esc(dealer.city)}, ${esc(dealer.country)}</p><a class="whatsapp public-action" href="${whatsapp}" target="_blank" rel="noopener">Consultar por WhatsApp</a></div></section><aside class="qr-card"><h2>Escaneá y compartí</h2><p class="muted">Este QR lleva directamente a esta ficha.</p><img src="${qr}" alt="Código QR para ${esc(v.brand)} ${esc(v.model)}"><button onclick="navigator.clipboard.writeText(location.href).then(()=>this.textContent='Enlace copiado')">Copiar enlace</button></aside></div>`;
+      }catch{app.innerHTML='<p>Este vehículo no está disponible o no existe.</p>'}
+    }
+    showVehicle();
+  </script>
+</body>
+</html>
