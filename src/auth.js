@@ -3,6 +3,10 @@ const AUTH_KEY = 'sb_publishable_dvwP1aVUTSHvmNcqn-IDEw_f0R2KO7D'
 const SESSION_KEY = 'autovision_admin_session'
 let session
 try { session = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null') } catch { session = null }
+if (session?.expires_at && session.expires_at * 1000 <= Date.now()) {
+  localStorage.removeItem(SESSION_KEY)
+  session = null
+}
 
 const originalFetch = window.fetch.bind(window)
 window.fetch = (input, init = {}) => {
