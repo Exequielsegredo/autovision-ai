@@ -7,6 +7,11 @@ if (session?.expires_at && session.expires_at * 1000 <= Date.now()) {
   localStorage.removeItem(SESSION_KEY)
   session = null
 }
+window.logout = () => {
+  localStorage.removeItem(SESSION_KEY)
+  session = null
+  location.reload()
+}
 
 const originalFetch = window.fetch.bind(window)
 window.fetch = (input, init = {}) => {

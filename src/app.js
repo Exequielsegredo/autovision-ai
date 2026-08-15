@@ -33,3 +33,13 @@ async function cycleReservation(id,current){const next=current==='active'?'compl
 function openDealerForm(){const d=state.dealers[0]||{};showModal('Datos de la automotora',`<form id="dealer-form"><label>Nombre<input name="name" required value="${e(d.name)}"></label><label>WhatsApp con código de país<input name="whatsapp" required value="${e(d.whatsapp)}"></label><div class="form-row"><label>Ciudad<input name="city" value="${e(d.city)}"></label><label>País<input name="country" value="${e(d.country)}"></label></div><label>URL del logo<input name="logo_url" value="${e(d.logo_url)}"></label><button>Guardar configuración</button></form>`);document.getElementById('dealer-form').addEventListener('submit',async ev=>{ev.preventDefault();try{await request(`dealerships?id=eq.${d.id}`,{method:'PATCH',body:JSON.stringify(Object.fromEntries(new FormData(ev.currentTarget)))});closeModal();await load()}catch{alert('No se pudo guardar la configuración.')}})}
 function go(view){state.view=view;render()}function publicVehicle(brand,model){location.href=`vehicle.html?brand=${encodeURIComponent(brand)}&model=${encodeURIComponent(model)}`}
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.view)));load();
+
+// Amplía el formulario básico sin cambiar el flujo de guardado existente.
+const openBasicVehicleForm=openVehicleForm;
+window.openVehicleForm=function(id){
+  openBasicVehicleForm(id);
+  const v=state.vehicles.find(x=>x.id===id)||{};
+  const form=document.getElementById('vehicle-form');
+  const description=form.querySelector('textarea[name="description"]');
+  description.insertAdjacentHTML('beforebegin',`<p class="eyebrow">DATOS TÉCNICOS DEL VEHÍCULO</p><div class="form-row"><label>Motor<input name="engine" value="${e(v.engine)}" placeholder="Ej.: 2.0 TFSI Turbo nafta"></label><label>Cilindrada<input name="displacement" value="${e(v.displacement)}" placeholder="Ej.: 1.984 cc"></label></div><div class="form-row"><label>Potencia<input name="power" value="${e(v.power)}" placeholder="Ej.: 230 HP"></label><label>Tracción<input name="drivetrain" value="${e(v.drivetrain)}" placeholder="Ej.: Quattro"></label></div><div class="form-row"><label>Transmisión<input name="transmission_detail" value="${e(v.transmission_detail||v.transmission)}" placeholder="Ej.: Automática"></label><label>Combustible<input name="fuel_type_detail" value="${e(v.fuel_type_detail||v.fuel_type)}" placeholder="Ej.: Nafta"></label></div><label>Equipamiento destacado<textarea name="featured_equipment" placeholder="Ej.: Ópticas LED, cámara, sensores, cuero, techo panorámico...">${e(v.featured_equipment)}</textarea></label>`);
+}
