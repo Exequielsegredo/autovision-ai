@@ -22,10 +22,11 @@ window.fetch = (input, init = {}) => {
 }
 
 function showLogin() {
+  document.body.classList.add('login-open')
   const modal = document.createElement('div')
   modal.className = 'modal'
   modal.id = 'login-modal'
-  modal.innerHTML = `<div class="modal-card login-card"><p class="eyebrow">ACCESO SEGURO</p><h2>AutoVision AI</h2><p class="muted">Ingresá con tu cuenta de administrador.</p><form id="login-form"><label>Correo electrónico<input name="email" type="email" required placeholder="tu@email.com"></label><label>Contraseña<input name="password" type="password" required minlength="6" placeholder="Mínimo 6 caracteres"></label><p class="form-message" id="login-message"></p><button type="submit">Ingresar</button><button class="text-button" type="button" id="signup-button">Crear mi cuenta de administrador</button></form></div>`
+  modal.innerHTML = `<div class="modal-card login-card"><div class="login-brand"><span>AV</span><div><strong>AutoVision</strong><small>GESTIÓN PARA AUTOMOTORAS</small></div></div><p class="eyebrow">ACCESO DE ADMINISTRADOR</p><h2>Bienvenido</h2><p class="muted">Gestioná vehículos, fichas QR y consultas de tus automotoras desde un solo lugar.</p><form id="login-form"><label>Correo electrónico<input name="email" type="email" required placeholder="tu@email.com"></label><label>Contraseña<input name="password" type="password" required minlength="6" placeholder="Mínimo 6 caracteres"></label><p class="form-message" id="login-message"></p><button type="submit">Ingresar al panel</button></form><p class="login-note">Acceso exclusivo para administradores de AutoVision.</p></div>`
   document.body.append(modal)
   const form = modal.querySelector('form'), message = modal.querySelector('#login-message')
   form.addEventListener('submit', async e => {
@@ -35,7 +36,8 @@ function showLogin() {
     if (!response.ok) { message.textContent = 'Correo o contraseña incorrectos.'; return }
     session = result; localStorage.setItem(SESSION_KEY, JSON.stringify(result)); modal.remove(); location.reload()
   })
-  modal.querySelector('#signup-button').addEventListener('click', async () => {
+  const signupButton = modal.querySelector('#signup-button')
+  signupButton?.addEventListener('click', async () => {
     const body = Object.fromEntries(new FormData(form)); message.textContent = 'Creando cuenta…'
     const response = await originalFetch(`${AUTH_URL}/signup`, { method: 'POST', headers: { apikey: AUTH_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     const result = await response.json()
